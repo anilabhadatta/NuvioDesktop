@@ -744,10 +744,7 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
             skipIntervalDismissed = true
         }
         "playNextEpisode" -> {
-            if (nextEpisodeInfo?.hasAired == true) {
-                nextEpisodeAutoPlayJob?.cancel()
-                playNextEpisode()
-            }
+            playNextEpisode(immediate = true)
         }
         "enableP2pForPlayerControls" -> enableP2pForPlayerControls()
         "cancelP2pForPlayerControls" -> {
@@ -928,7 +925,11 @@ private fun PlayerScreenRuntime.requestEpisodeStreamsForPlayerControls(
         episode = episode.episode,
         forceRefresh = forceRefresh,
     )
-    episodeStreamsPanelState = EpisodeStreamsPanelState(showStreams = true, selectedEpisode = episode)
+    episodeStreamsPanelState = EpisodeStreamsPanelState(
+        showStreams = true,
+        selectedEpisode = episode,
+        streamsUiState = PlayerStreamsRepository.episodeStreamsState.value,
+    )
 }
 
 private fun PlayerScreenRuntime.submitIntroFromPlayerControls() {
@@ -1303,7 +1304,7 @@ private fun BoxScope.RenderPlaybackOverlays(
             nextEpisodeAutoPlayCountdown = nextEpisodeAutoPlayCountdown,
             onPlayNextEpisode = {
                 nextEpisodeAutoPlayJob?.cancel()
-                playNextEpisode()
+                playNextEpisode(immediate = true)
             },
             onDismissNextEpisode = {
                 nextEpisodeAutoPlayJob?.cancel()
@@ -1439,7 +1440,11 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
                 season = episode.season,
                 episode = episode.episode,
             )
-            episodeStreamsPanelState = EpisodeStreamsPanelState(showStreams = true, selectedEpisode = episode)
+            episodeStreamsPanelState = EpisodeStreamsPanelState(
+                showStreams = true,
+                selectedEpisode = episode,
+                streamsUiState = PlayerStreamsRepository.episodeStreamsState.value,
+            )
         },
         onEpisodeStreamFilterSelected = PlayerStreamsRepository::selectEpisodeStreamsFilter,
         onEpisodeStreamSelected = { stream, episode -> switchToEpisodeStream(stream, episode) },
