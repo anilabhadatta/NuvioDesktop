@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -93,11 +94,9 @@ import com.nuvio.app.core.deeplink.AppDeepLink
 import com.nuvio.app.core.deeplink.AppDeepLinkRepository
 import com.nuvio.app.core.network.NetworkCondition
 import com.nuvio.app.core.network.NetworkStatusRepository
-import com.nuvio.app.core.network.SupabaseProvider
-import com.nuvio.app.core.network.SyncBackendRefreshResult
-import com.nuvio.app.core.network.SyncBackendRepository
 import com.nuvio.app.core.sync.AppForegroundMonitor
 import com.nuvio.app.core.sync.ProfileSettingsSync
+import com.nuvio.app.core.sync.RealtimeSyncInvalidationService
 import com.nuvio.app.core.sync.SyncManager
 import com.nuvio.app.core.ui.NuvioNavigationBar
 import com.nuvio.app.core.ui.NuvioContinueWatchingActionSheet
@@ -174,6 +173,7 @@ import com.nuvio.app.features.player.sanitizePlaybackResponseHeaders
 import com.nuvio.app.features.profiles.ActiveProfileMiniAvatar
 import com.nuvio.app.features.profiles.AvatarCatalogItem
 import com.nuvio.app.features.profiles.AvatarRepository
+import com.nuvio.app.features.profiles.MAX_PROFILES
 import com.nuvio.app.features.profiles.NuvioProfile
 import com.nuvio.app.features.profiles.NativeProfileSwitcherPopup
 import com.nuvio.app.features.profiles.ProfileEditScreen
@@ -373,6 +373,10 @@ private val DesktopSidebarExpandedContentWidth = 168.dp
 private val DesktopSidebarItemHeight = 58.dp
 private val DesktopSidebarIconSlotSize = 42.dp
 private val DesktopSidebarIconSize = NuvioTokens.Icon.lg
+private val DesktopSidebarProfileStackRowHeight = 40.dp
+private val DesktopSidebarProfileStackRowGap = 4.dp
+private val DesktopSidebarProfileStackTopGap = 6.dp
+private val DesktopSidebarProfileStackNavGap = 12.dp
 
 private fun AppScreenTab.toNativeNavigationTab(): NativeNavigationTab = when (this) {
     AppScreenTab.Home -> NativeNavigationTab.Home
@@ -434,32 +438,6 @@ private suspend fun warmProfileBoundRepositories() {
     }
 }
 
-private suspend fun refreshSyncBackendSelection() {
-    SyncBackendRepository.ensureLoaded()
-
-    when (val result = SyncBackendRepository.refreshFromManifest()) {
-        SyncBackendRefreshResult.NotConfigured,
-        is SyncBackendRefreshResult.Failed,
-        SyncBackendRefreshResult.Unchanged,
-        -> Unit
-        is SyncBackendRefreshResult.Applied -> {
-            SupabaseProvider.rebuildClient()
-            NetworkStatusRepository.requestRefresh(force = true)
-        }
-        is SyncBackendRefreshResult.RequiresLogout -> {
-            AuthRepository.resetForSyncBackendChange()
-                .onSuccess {
-                    SyncBackendRepository.applyBackendAfterLogout(
-                        backend = result.targetBackend,
-                        revision = result.revision,
-                    )
-                    SupabaseProvider.rebuildClient()
-                    NetworkStatusRepository.requestRefresh(force = true)
-                }
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview
@@ -488,14 +466,7 @@ fun App() {
             desktopUiScale = desktopUiScale,
         ) {
             LaunchedEffect(Unit) {
-                refreshSyncBackendSelection()
                 AuthRepository.initialize()
-            }
-
-            LaunchedEffect(Unit) {
-                AppForegroundMonitor.events().collect {
-                    refreshSyncBackendSelection()
-                }
             }
 
             LaunchedEffect(Unit) {
@@ -1020,6 +991,27 @@ private fun MainAppContent(
         if (authenticatedState.isAnonymous) return@LaunchedEffect
 
         val activeProfileId = profileState.activeProfile?.profileIndex ?: return@LaunchedEffect
+        RealtimeSyncInvalidationService.start(
+            userId = authenticatedState.userId,
+            profileId = activeProfileId,
+        )
+    }
+
+    DisposableEffect(authState, profileState.activeProfile?.profileIndex) {
+        val authenticatedState = authState as? AuthState.Authenticated
+        if (authenticatedState == null || authenticatedState.isAnonymous || profileState.activeProfile == null) {
+            RealtimeSyncInvalidationService.stop()
+        }
+        onDispose {
+            RealtimeSyncInvalidationService.stop()
+        }
+    }
+
+    LaunchedEffect(authState, profileState.activeProfile?.profileIndex) {
+        val authenticatedState = authState as? AuthState.Authenticated ?: return@LaunchedEffect
+        if (authenticatedState.isAnonymous) return@LaunchedEffect
+
+        val activeProfileId = profileState.activeProfile?.profileIndex ?: return@LaunchedEffect
         AppForegroundMonitor.events().collect {
             SyncManager.requestForegroundPull(activeProfileId, force = true)
         }
@@ -1157,14 +1149,18 @@ private fun MainAppContent(
             val baseRequest = launch.toExternalPlayerPlaybackRequest()
             val shouldForwardSubtitles = playerSettingsUiState.externalPlayerForwardSubtitles &&
                 !playerSettingsUiState.preferredSubtitleLanguage.equals(SubtitleLanguageOption.NONE, ignoreCase = true)
+            val shouldSendSkipSegments = playerSettingsUiState.externalPlayerSendSkipSegments
             if (shouldForwardSubtitles) {
                 StreamsRepository.setOverlayVisible(true, getString(Res.string.streams_loading_subtitles))
+            } else if (shouldSendSkipSegments) {
+                StreamsRepository.setOverlayVisible(true, getString(Res.string.streams_loading_skip_segments))
             }
             val enrichedRequest = prepareExternalPlayerLaunch(
                 request = baseRequest,
                 type = launch.contentType ?: launch.parentMetaType,
                 videoId = launch.videoId ?: launch.parentMetaId,
                 forwardSubtitles = playerSettingsUiState.externalPlayerForwardSubtitles,
+                sendSkipSegments = shouldSendSkipSegments,
                 preferredLanguage = playerSettingsUiState.preferredSubtitleLanguage,
                 secondaryLanguage = playerSettingsUiState.secondaryPreferredSubtitleLanguage,
                 onOverlayMessage = { _ -> },
@@ -2432,8 +2428,10 @@ private fun MainAppContent(
                         )
 
                         if (!forceInternal && externalPlayerSupported && (forceExternal || playerSettings.externalPlayerEnabled)) {
-                            coroutineScope.launch { openExternalPlayback(playerLaunch, forcePrompt = forceExternal) }
-                            StreamsRepository.cancelLoading()
+                            streamRouteScope.launch {
+                                openExternalPlayback(playerLaunch)
+                                StreamsRepository.cancelLoading()
+                            }
                             return
                         }
 
@@ -3030,7 +3028,7 @@ private fun MainAppContent(
 
             externalPlayerPromptRequest?.let { request ->
                 if (request.preferredPlayerId != null) {
-                    // Desktop inline picker already chose the player â€” launch directly
+                    // Desktop inline picker already chose the player — launch directly
                     LaunchedEffect(request) {
                         val intentResult = ExternalPlayerPlatform.buildIntent(
                             request = request,
@@ -3255,6 +3253,7 @@ private fun DesktopHoverSidebar(
     val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
     val avatars by AvatarRepository.avatars.collectAsStateWithLifecycle()
     val activeProfile = profileState.activeProfile
+    val profiles = profileState.profiles
     val activeProfileName = activeProfile?.name ?: stringResource(Res.string.compose_nav_profile)
     val hoverSource = remember { MutableInteractionSource() }
     val hovered by hoverSource.collectIsHoveredAsState()
@@ -3280,9 +3279,33 @@ private fun DesktopHoverSidebar(
         color = tokens.colors.background,
         contentColor = tokens.colors.textPrimary,
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier.fillMaxSize(),
         ) {
+            val profileStackRows = profiles.size + if (profiles.size < MAX_PROFILES) 1 else 0
+            val profileStackHeight = if (profileStackRows > 0) {
+                DesktopSidebarProfileStackRowHeight * profileStackRows +
+                    DesktopSidebarProfileStackRowGap * (profileStackRows - 1)
+            } else {
+                0.dp
+            }
+            val profileStackTop = profileTopPadding + DesktopSidebarItemHeight + DesktopSidebarProfileStackTopGap
+            val minNavTop = if (profileStackVisible) {
+                profileStackTop + profileStackHeight + DesktopSidebarProfileStackNavGap
+            } else {
+                0.dp
+            }
+            val navColumnHeight = DesktopSidebarItemHeight * AppScreenTab.entries.size
+            val centeredNavTop = ((maxHeight - navColumnHeight) / 2).coerceAtLeast(0.dp)
+            val availableNavOffset = (maxHeight - navColumnHeight - centeredNavTop).coerceAtLeast(0.dp)
+            val navColumnOffset = (minNavTop - centeredNavTop)
+                .coerceIn(0.dp, availableNavOffset)
+            val animatedNavColumnOffset by animateDpAsState(
+                targetValue = navColumnOffset,
+                animationSpec = tween(durationMillis = 180),
+                label = "desktop_sidebar_nav_offset",
+            )
+
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -3312,14 +3335,16 @@ private fun DesktopHoverSidebar(
                     onDismissRequest = { profileStackVisible = false },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = profileTopPadding + DesktopSidebarItemHeight + 6.dp)
-                        .width(DesktopSidebarExpandedContentWidth),
+                        .padding(top = profileStackTop)
+                        .width(DesktopSidebarExpandedContentWidth)
+                        .zIndex(NuvioTokens.Z.sheet),
                 )
             }
 
             Column(
                 modifier = Modifier
                     .align(Alignment.Center)
+                    .offset(y = animatedNavColumnOffset)
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {

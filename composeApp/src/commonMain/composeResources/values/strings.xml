@@ -546,9 +546,6 @@
     <string name="settings_account_status">Status</string>
     <string name="settings_account_status_anonymous">Anonymous</string>
     <string name="settings_account_status_signed_in">Signed in</string>
-    <string name="settings_account_sync_backend">Sync backend</string>
-    <string name="debug_backend_switch_confirm_title">Switch backend?</string>
-    <string name="debug_backend_switch_confirm_message">Switch to %1$s and sign out? You can sign in again on the selected backend.</string>
     <string name="settings_appearance_amoled_black">AMOLED Black</string>
     <string name="settings_appearance_amoled_description">Use pure black backgrounds for OLED screens.</string>
     <string name="settings_appearance_app_language">App Language</string>
@@ -752,6 +749,14 @@
     <string name="settings_meta_cast_description">Principal cast list.</string>
     <string name="settings_meta_cinematic_background">Cinematic Background</string>
     <string name="settings_meta_cinematic_background_description">Blurred backdrop behind content, similar to stream screen.</string>
+    <string name="settings_meta_background_mode">Background Mode</string>
+    <string name="settings_meta_background_mode_description">Choose how artwork appears behind metadata pages.</string>
+    <string name="settings_meta_background_mode_normal">Normal</string>
+    <string name="settings_meta_background_mode_normal_description">Use the standard app background.</string>
+    <string name="settings_meta_background_mode_cinematic">Cinematic</string>
+    <string name="settings_meta_background_mode_cinematic_description">Show a soft blurred backdrop behind the page.</string>
+    <string name="settings_meta_background_mode_dominant">Dominant Color</string>
+    <string name="settings_meta_background_mode_dominant_description">Match the page background to the main color from the backdrop.</string>
     <string name="settings_meta_collection">Collection</string>
     <string name="settings_meta_collection_description">Related collection or franchise rail.</string>
     <string name="settings_meta_comments">Comments</string>
@@ -865,6 +870,8 @@
     <string name="settings_playback_external_player_description_ios">Open new playback with the selected installed player.</string>
     <string name="settings_playback_external_player_forward_subtitles">Forward Subtitles to External Player</string>
     <string name="settings_playback_external_player_forward_subtitles_description">Fetch addon subtitles in your preferred language and pass them to the external player.</string>
+    <string name="settings_playback_external_player_send_skip_segments">Send Intro and Outro Timestamps</string>
+    <string name="settings_playback_external_player_send_skip_segments_description">Pass resolved intro and outro skip timestamps to the external player for auto-skipping. Only works in players that support it; other players ignore it.</string>
     <string name="settings_playback_external_player_none_available">No supported external players installed</string>
     <string name="settings_playback_player_preference">Player</string>
     <string name="settings_playback_player_preference_internal">Internal</string>
@@ -1335,6 +1342,7 @@
     <string name="streams_fetching">Fetching…</string>
     <string name="streams_finding_source">Finding source…</string>
     <string name="streams_loading_subtitles">Loading subtitles from addons…</string>
+    <string name="streams_loading_skip_segments">Loading skip segments…</string>
     <string name="streams_finding_streams">Finding streams…</string>
     <string name="streams_link_copied">Stream link copied</string>
     <string name="streams_no_direct_link">No direct stream link available</string>
@@ -1485,8 +1493,10 @@
     <string name="action_resume_episode">Resume %1$s</string>
     <string name="collections_import_error_empty_json">JSON is empty.</string>
     <string name="collections_import_error_collection_blank_id">Collection %1$d has blank id.</string>
+    <string name="collections_import_error_collection_duplicate_id">Collection id '%1$s' is used more than once.</string>
     <string name="collections_import_error_collection_blank_title">Collection '%1$s' has blank title.</string>
     <string name="collections_import_error_folder_blank_id">Folder %1$d in '%2$s' has blank id.</string>
+    <string name="collections_import_error_folder_duplicate_id">Folder id '%1$s' is used more than once in '%2$s'.</string>
     <string name="collections_import_error_folder_blank_title">Folder '%1$s' in '%2$s' has blank title.</string>
     <string name="collections_import_error_source_blank_fields">Source %1$d in folder '%2$s' has blank fields.</string>
     <string name="collections_import_error_trakt_list_id">Source %1$d in folder '%2$s' is missing a Trakt list ID.</string>
@@ -1951,4 +1961,19 @@
     <string name="player_torrent_starting_engine">Starting P2P engine…</string>
     <string name="player_error_failed_start_torrent">Failed to start torrent: %1$s</string>
     <string name="player_error_torrent">Torrent error: %1$s</string>
+    <!-- Person & TMDB entity detail (pass7) -->
+    <string name="person_detail_born">Born</string>
+    <string name="person_detail_place_of_birth">Place of birth</string>
+    <string name="person_detail_credits">Credits</string>
+    <string name="person_detail_biography">Biography</string>
+    <string name="entity_browse_country">Country</string>
+    <string name="entity_browse_type">Type</string>
+    <string name="entity_browse_catalogue">Catalogue</string>
+    <string name="entity_browse_about">About</string>
+    <string name="player_external_loading_subtitles">Loading subtitles from addons...</string>
+    <string name="player_external_downloading_subtitles">Downloading subtitles...</string>
+    <plurals name="entity_browse_title_count">
+        <item quantity="one">%d title</item>
+        <item quantity="other">%d titles</item>
+    </plurals>
 </resources>
