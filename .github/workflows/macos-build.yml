@@ -74,6 +74,8 @@ jobs:
         INTRODB_API_URL=${{ secrets.INTRODB_API_URL }}
         SUPABASE_URL=${{ secrets.SUPABASE_URL }}
         SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+        NUVIO_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+        NUVIO_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
         IMDB_RATINGS_API_BASE_URL=${{ secrets.IMDB_RATINGS_API_BASE_URL }}
         IMDB_TAPFRAME_API_BASE_URL=${{ secrets.IMDB_TAPFRAME_API_BASE_URL }}
         TRAKT_CLIENT_ID=${{ secrets.TRAKT_CLIENT_ID }}
