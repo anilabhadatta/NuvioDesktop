@@ -77,6 +77,70 @@ struct BorderlessFullscreenState {
 std::mutex gBorderlessFullscreenMutex;
 std::unordered_map<HWND, BorderlessFullscreenState> gBorderlessFullscreenStates;
 
+struct DisplaySleepInhibitRequest {
+    std::mutex mutex;
+    std::condition_variable condition;
+    bool stop = false;
+};
+
+std::mutex gDisplaySleepInhibitMutex;
+std::shared_ptr<DisplaySleepInhibitRequest> gDisplaySleepInhibitRequest;
+std::thread *gDisplaySleepInhibitThread = nullptr;
+
+void displaySleepInhibitThreadMain(std::shared_ptr<DisplaySleepInhibitRequest> request) {
+    SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED);
+
+    std::unique_lock<std::mutex> lock(request->mutex);
+    request->condition.wait(lock, [request] { return request->stop; });
+    lock.unlock();
+
+    SetThreadExecutionState(ES_CONTINUOUS);
+}
+
+bool setDisplaySleepInhibited(bool inhibited) {
+    if (inhibited) {
+        std::lock_guard<std::mutex> stateLock(gDisplaySleepInhibitMutex);
+        if (gDisplaySleepInhibitThread != nullptr) return true;
+
+        auto request = std::make_shared<DisplaySleepInhibitRequest>();
+        try {
+            gDisplaySleepInhibitThread = new std::thread(displaySleepInhibitThreadMain, request);
+            gDisplaySleepInhibitRequest = request;
+            return true;
+        } catch (...) {
+            gDisplaySleepInhibitRequest.reset();
+            return false;
+        }
+    }
+
+    std::shared_ptr<DisplaySleepInhibitRequest> request;
+    std::thread *threadToJoin = nullptr;
+    {
+        std::lock_guard<std::mutex> stateLock(gDisplaySleepInhibitMutex);
+        if (gDisplaySleepInhibitThread == nullptr) return true;
+
+        request = gDisplaySleepInhibitRequest;
+        threadToJoin = gDisplaySleepInhibitThread;
+        gDisplaySleepInhibitThread = nullptr;
+        gDisplaySleepInhibitRequest.reset();
+    }
+
+    if (request) {
+        {
+            std::lock_guard<std::mutex> requestLock(request->mutex);
+            request->stop = true;
+        }
+        request->condition.notify_all();
+    }
+    if (threadToJoin != nullptr) {
+        if (threadToJoin->joinable()) {
+            threadToJoin->join();
+        }
+        delete threadToJoin;
+    }
+    return true;
+}
+
 std::wstring toWide(const std::string &value) {
     if (value.empty()) return std::wstring();
     int size = MultiByteToWideChar(CP_UTF8, 0, value.data(), (int)value.size(), nullptr, 0);
@@ -923,10 +987,9 @@ public:
         bool paused = isPaused();
         bool eofReached = isEnded();
         bool idle = flagProperty("core-idle", true);
-        bool seeking = flagProperty("seeking", false);
         bool bufferingCache = flagProperty("paused-for-cache", false);
         bool fileReady = doubleProperty("duration", 0.0) > 0.0 || int64Property("track-list/count", 0) > 0;
-        return !fileReady || (idle && !paused && !eofReached) || seeking || bufferingCache;
+        return !fileReady || (idle && !paused && !eofReached) || bufferingCache;
     }
 
     bool isEnded() {
@@ -1473,11 +1536,12 @@ private:
             setMpvOptionStringLocked("input-vo-keyboard", "no");
             setMpvOptionStringLocked("keep-open", "yes");
             setMpvOptionStringLocked("vo", "gpu-next");
-            setMpvOptionStringLocked("gpu-api", "d3d11");
             if (nvidiaRtxSuperResolutionEnabled) {
+                setMpvOptionStringLocked("gpu-api", "d3d11");
                 setMpvOptionStringLocked("hwdec", "d3d11va");
                 setMpvOptionStringLocked("d3d11-adapter", "NVIDIA");
             } else {
+                setMpvOptionStringLocked("gpu-api", "auto");
                 setMpvOptionStringLocked("hwdec", "auto");
             }
             setMpvOptionStringLocked("hwdec-codecs", "all");
@@ -1503,7 +1567,7 @@ private:
             setMpvOptionStringLocked("demuxer-max-bytes", "512MiB");
             setMpvOptionStringLocked("demuxer-max-back-bytes", "256MiB");
             setMpvOptionStringLocked("demuxer-seekable-cache", "yes");
-            setMpvOptionStringLocked("cache-secs", "120");
+            setMpvOptionStringLocked("cache-secs", "36000");
             setMpvOptionStringLocked("hr-seek", "no");
 
             int64_t wid = (int64_t)(intptr_t)containerHwnd;
@@ -2144,6 +2208,11 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_warmupWebView2(JNI
 extern "C" JNIEXPORT void JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_shutdownWebView2Warmup(JNIEnv *, jobject) {
     stopWebView2Warmup();
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setWindowsDisplaySleepInhibited(JNIEnv *, jobject, jboolean inhibited) {
+    return setDisplaySleepInhibited(inhibited == JNI_TRUE) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL

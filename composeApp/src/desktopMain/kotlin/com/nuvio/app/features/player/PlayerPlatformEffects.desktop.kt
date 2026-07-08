@@ -6,6 +6,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.IntSize
 import com.nuvio.app.features.player.desktop.DesktopHostOs
+import com.nuvio.app.features.player.desktop.NativePlayerBridge
 
 @Composable
 actual fun LockPlayerToLandscape() = Unit
@@ -36,14 +37,20 @@ actual fun rememberPlayerGestureController(): PlayerGestureController? = null
 
 private class DesktopKeepAwakeController : AutoCloseable {
     private var caffeinateProcess: Process? = null
+    private var windowsDisplaySleepInhibited = false
 
     fun setEnabled(enabled: Boolean) {
-        if (DesktopHostOs.current != DesktopHostOs.MACOS) return
+        when (DesktopHostOs.current) {
+            DesktopHostOs.MACOS -> {
+                if (enabled) {
+                    startCaffeinate()
+                } else {
+                    stopCaffeinate()
+                }
+            }
 
-        if (enabled) {
-            startCaffeinate()
-        } else {
-            stopCaffeinate()
+            DesktopHostOs.WINDOWS -> setWindowsDisplaySleepInhibited(enabled)
+            DesktopHostOs.LINUX, DesktopHostOs.UNKNOWN -> Unit
         }
     }
 
@@ -69,7 +76,19 @@ private class DesktopKeepAwakeController : AutoCloseable {
         caffeinateProcess = null
     }
 
+    private fun setWindowsDisplaySleepInhibited(inhibited: Boolean) {
+        if (windowsDisplaySleepInhibited == inhibited) return
+
+        val applied = runCatching {
+            NativePlayerBridge.setWindowsDisplaySleepInhibited(inhibited)
+        }.getOrDefault(false)
+        if (applied) {
+            windowsDisplaySleepInhibited = inhibited
+        }
+    }
+
     override fun close() {
         stopCaffeinate()
+        setWindowsDisplaySleepInhibited(false)
     }
 }

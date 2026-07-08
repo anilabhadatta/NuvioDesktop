@@ -1011,6 +1011,7 @@ kotlin {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutines.swing)
                 implementation(libs.ktor.client.cio)
+                implementation("com.squareup.okhttp3:okhttp:4.12.0")
                 implementation(libs.quickjs.kt)
                 implementation(libs.ksoup)
             }
@@ -1075,11 +1076,28 @@ compose.desktop {
                 "java.instrument",
                 "java.management",
                 "java.net.http",
+                "jdk.httpserver",
                 "jdk.unsupported",
             )
             macOS {
                 bundleID = "com.nuvio.media.desktop"
                 iconFile.set(project.file("src/desktopMain/resources/icons/nuvio-app-icon.icns"))
+                infoPlist {
+                    extraKeysRawXml = """
+                        <key>CFBundleURLTypes</key>
+                        <array>
+                            <dict>
+                                <key>CFBundleURLName</key>
+                                <string>com.nuvio.media.desktop</string>
+                                <key>CFBundleURLSchemes</key>
+                                <array>
+                                    <string>nuvio</string>
+                                    <string>stremio</string>
+                                </array>
+                            </dict>
+                        </array>
+                    """.trimIndent()
+                }
                 if (macosSigningIdentity != null) {
                     signing {
                         sign.set(true)
