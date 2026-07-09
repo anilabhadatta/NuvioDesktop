@@ -11,6 +11,7 @@ import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskAction
 import org.gradle.jvm.tasks.Jar
+import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.process.ExecOperations
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -300,6 +301,59 @@ abstract class NotarizeMacosDmgWithKeychainTask @Inject constructor(
     }
 }
 
+abstract class PrepareMacosTorrServerResourcesTask @Inject constructor(
+    private val execOperations: ExecOperations,
+) : DefaultTask() {
+    @get:InputDirectory
+    abstract val sourceDir: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @get:Input
+    abstract val signingIdentity: Property<String>
+
+    @TaskAction
+    fun prepare() {
+        val sourceRoot = sourceDir.get().asFile
+        val outputRoot = outputDir.get().asFile
+        val resourceRoot = outputRoot.resolve("torrserver")
+
+        outputRoot.deleteRecursively()
+        resourceRoot.mkdirs()
+
+        sourceRoot.walkTopDown()
+            .filter(File::isFile)
+            .forEach { sourceFile ->
+                val relativePath = sourceFile.relativeTo(sourceRoot)
+                val outputFile = resourceRoot.resolve(relativePath.path)
+                outputFile.parentFile.mkdirs()
+                sourceFile.copyTo(outputFile, overwrite = true)
+                outputFile.setExecutable(sourceFile.canExecute())
+            }
+
+        val identity = signingIdentity.get().trim()
+        if (identity.isNotEmpty()) {
+            resourceRoot.walkTopDown()
+                .filter(File::isFile)
+                .forEach { binary ->
+                    execOperations.exec {
+                        commandLine(
+                            "codesign",
+                            "--force",
+                            "--options",
+                            "runtime",
+                            "--timestamp",
+                            "--sign",
+                            identity,
+                            binary.absolutePath,
+                        )
+                    }
+                }
+        }
+    }
+}
+
 fun readXcconfigValue(file: File, key: String): String? {
     if (!file.exists()) return null
     return file.readLines()
@@ -514,6 +568,12 @@ val generateRuntimeConfigs = tasks.register<GenerateRuntimeConfigsTask>("generat
 
 val isMacHost = System.getProperty("os.name").contains("mac", ignoreCase = true)
 val isWindowsHost = System.getProperty("os.name").contains("win", ignoreCase = true)
+val prepareMacosTorrServerResources = tasks.register<PrepareMacosTorrServerResourcesTask>("prepareMacosTorrServerResources") {
+    enabled = isMacHost
+    sourceDir.set(layout.projectDirectory.dir("src/desktopMain/torrserver"))
+    outputDir.set(layout.buildDirectory.dir("generated/signed-macos-torrserver-resources"))
+    signingIdentity.set(macosSigningIdentity.orEmpty())
+}
 val mpvKitDir = providers.gradleProperty("nuvio.mpvkit.dir")
     .orElse(rootProject.layout.projectDirectory.dir("MPVKit").asFile.absolutePath)
 val macosPlayerBridgeSource = layout.projectDirectory.file("src/desktopMain/native/macos/player_bridge.mm")
@@ -872,6 +932,13 @@ tasks.withType<Jar>().configureEach {
         from(windowsPlayerRuntimeOutput) {
             into("native/windows")
         }
+    }
+}
+
+tasks.withType<ProcessResources>().matching { it.name == "desktopProcessResources" }.configureEach {
+    if (isMacHost) {
+        dependsOn(prepareMacosTorrServerResources)
+        from(prepareMacosTorrServerResources.map { it.outputDir })
     }
 }
 

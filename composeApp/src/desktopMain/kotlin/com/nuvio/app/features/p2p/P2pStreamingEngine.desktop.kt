@@ -456,6 +456,7 @@ actual object P2pStreamingEngine {
                 File("composeApp/build/native/torrserver/${platform.resourceDir}/${platform.binaryName}"),
                 File("build/native/torrserver/${platform.resourceDir}/${platform.binaryName}"),
                 File("composeApp/src/desktopMain/native/torrserver/${platform.resourceDir}/${platform.binaryName}"),
+                File("composeApp/src/desktopMain/torrserver/${platform.resourceDir}/${platform.binaryName}"),
                 File("composeApp/src/desktopMain/resources/torrserver/${platform.resourceDir}/${platform.binaryName}"),
                 File("vendor/TorrServer/dist/${platform.distFileName}"),
                 File("vendor/TorrServer/dist/${platform.binaryName}"),

@@ -90,6 +90,10 @@ fun <T> NuvioShelfSection(
 ) {
     val tokens = MaterialTheme.nuvio
     val rowState = rememberLazyListState()
+    val duplicateSafeEntries = remember(entries, key) {
+        key?.let { entries.withDuplicateSafeLazyKeys(it) }
+    }
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap + NuvioTokens.Space.s2),
@@ -109,10 +113,11 @@ fun <T> NuvioShelfSection(
             contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
-            if (key != null) {
+            if (duplicateSafeEntries != null) {
                 items(
-                    items = entries.withDuplicateSafeLazyKeys(key),
+                    items = duplicateSafeEntries,
                     key = { entry -> entry.lazyKey },
+                    contentType = { "poster" },
                 ) { keyedEntry ->
                     if (animatePlacement) {
                         Box(modifier = Modifier.animateItem()) { itemContent(keyedEntry.value) }
@@ -121,7 +126,10 @@ fun <T> NuvioShelfSection(
                     }
                 }
             } else {
-                items(entries) { entry ->
+                items(
+                    items = entries,
+                    contentType = { "poster" },
+                ) { entry ->
                     if (animatePlacement) {
                         Box(modifier = Modifier.animateItem()) { itemContent(entry) }
                     } else {
