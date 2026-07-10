@@ -670,6 +670,7 @@ private fun EpisodeHorizontalCard(
     val ratingLabel = remember(imdbRating) { imdbRating?.takeIf { it > 0.0 }?.let(::formatEpisodeRating) }
     val formattedDate = remember(video.released) { video.released?.let { formatReleaseDateForDisplay(it) } }
     val runtimeLabel = remember(video.runtime) { video.runtime?.takeIf { it > 0 }?.let(::formatEpisodeRuntime) }
+    val imageUrl = video.thumbnail ?: fallbackImage
     Box(
         modifier = Modifier
             .width(metrics.cardWidth)
@@ -681,14 +682,13 @@ private fun EpisodeHorizontalCard(
                 color = Color.White.copy(alpha = 0.12f),
                 shape = cardShape,
             )
-            .combinedClickable(
-                enabled = onClick != null || onLongPress != null,
-                onClick = { onClick?.invoke() },
+            .posterCardClickable(
+                onClick = onClick,
                 onLongClick = onLongPress,
-            )
-            .secondaryClick(onLongPress),
+                zoomImageUrl = imageUrl,
+                zoomCornerRadius = metrics.cornerRadius,
+            ),
     ) {
-        val imageUrl = video.thumbnail ?: fallbackImage
         val shouldBlurArtwork = blurUnwatchedEpisodes && !isWatched
         if (imageUrl != null) {
             AsyncImage(

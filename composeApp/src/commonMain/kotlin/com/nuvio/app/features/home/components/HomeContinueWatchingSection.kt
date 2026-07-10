@@ -53,6 +53,7 @@ import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
 import com.nuvio.app.core.ui.landscapePosterHeightForWidth
 import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.posterCardClickable
+import com.nuvio.app.core.ui.desktopPosterHoverScale
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.features.cloud.CloudLibraryContentType
 import com.nuvio.app.features.cloud.cloudLibraryDisplayArtworkUrl
@@ -657,11 +658,16 @@ private fun ContinueWatchingCard(
 
     Box(
         modifier = Modifier
-            .posterCardClickable(onClick = onClick, onLongClick = onLongClick)
             .width(cardMetrics.width)
             .aspectRatio(PosterLandscapeAspectRatio)
             .clip(RoundedCornerShape(cardMetrics.cornerRadius))
-            .background(MaterialTheme.colorScheme.surfaceVariant),
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .posterCardClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+                zoomImageUrl = imageUrl,
+                zoomCornerRadius = cardMetrics.cornerRadius,
+            ),
     ) {
         if (imageUrl != null) {
             AsyncImage(
@@ -946,9 +952,10 @@ private fun ContinueWatchingPosterCard(
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
 ) {
+    val imageUrl = item.continueWatchingPosterArtworkUrl(useEpisodeThumbnails)
     Column(
         modifier = Modifier
-            .posterCardClickable(onClick = onClick, onLongClick = onLongClick)
+            .desktopPosterHoverScale()
             .width(layout.posterCardWidth),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -957,9 +964,15 @@ private fun ContinueWatchingPosterCard(
                 .fillMaxWidth()
                 .height(layout.posterCardHeight)
                 .clip(RoundedCornerShape(layout.cardRadius))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .posterCardClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                    zoomImageUrl = imageUrl,
+                    zoomCornerRadius = layout.cardRadius,
+                    hoverScaleEnabled = false,
+                ),
         ) {
-            val imageUrl = item.continueWatchingPosterArtworkUrl(useEpisodeThumbnails)
             val shouldBlurArtwork = blurNextUp &&
                 useEpisodeThumbnails &&
                 item.isNextUp &&
