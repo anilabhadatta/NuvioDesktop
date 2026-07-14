@@ -211,6 +211,7 @@ fun IosHardwareDecoderMode.localizedLabel(): String = when (this) {
 }
 
 data class PlayerPlaybackSnapshot(
+	val mediaInfoJson: String = "{}",
     val isLoading: Boolean = true,
     val isPlaying: Boolean = false,
     val isEnded: Boolean = false,
@@ -218,7 +219,8 @@ data class PlayerPlaybackSnapshot(
     val positionMs: Long = 0L,
     val bufferedPositionMs: Long = 0L,
     val playbackSpeed: Float = 1f,
-    val mediaInfoJson: String = "{}",
+    val videoWidth: Int = 0,
+    val videoHeight: Int = 0,
 )
 
 data class PlayerNowPlayingInfo(

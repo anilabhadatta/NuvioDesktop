@@ -17,6 +17,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.debrid.DebridSettingsRepository
+import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.p2p.P2pSettingsRepository
@@ -42,6 +43,7 @@ private val playerControlsLog = Logger.withTag("PlayerControls")
 @Composable
 internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
     val runtime = this
+    val isInPip = rememberIsInPictureInPicture()
     val displayedPositionMs = scrubbingPositionMs ?: playbackSnapshot.positionMs
     val seasonNumber = activeSeasonNumber
     val episodeNumber = activeEpisodeNumber
@@ -472,8 +474,9 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
 
 @Composable
 private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, isEpisode: Boolean) {
+    val isInPip = rememberIsInPictureInPicture()
     AnimatedVisibility(
-        visible = (controlsVisible || showParentalGuide) && !playerControlsLocked,
+        visible = (controlsVisible || showParentalGuide) && !playerControlsLocked && !isInPip,
         enter = fadeIn(),
         exit = fadeOut(),
     ) {
@@ -853,9 +856,13 @@ private fun PlayerScreenRuntime.requestP2pConsentForPlayerControls(
     stream: StreamItem,
     episode: MetaVideo?,
 ): Boolean {
-    if (!isP2pStream(stream)) return false
-    if (!P2pSettingsRepository.isVisible) return false
-    if (P2pSettingsRepository.uiState.value.p2pEnabled) return false
+    val shouldRequestConsent = shouldRequestP2pConsentForPlayerControls(
+        isP2pStream = isP2pStream(stream),
+        shouldResolveToPlayableStream = DirectDebridPlaybackResolver.shouldResolveToPlayableStream(stream),
+        p2pSettingsVisible = P2pSettingsRepository.isVisible,
+        p2pEnabled = P2pSettingsRepository.uiState.value.p2pEnabled,
+    )
+    if (!shouldRequestConsent) return false
     playerControlsPendingP2pSwitch = PendingPlayerP2pSwitch(
         stream = stream,
         episode = episode,
@@ -863,6 +870,17 @@ private fun PlayerScreenRuntime.requestP2pConsentForPlayerControls(
     )
     return true
 }
+
+internal fun shouldRequestP2pConsentForPlayerControls(
+    isP2pStream: Boolean,
+    shouldResolveToPlayableStream: Boolean,
+    p2pSettingsVisible: Boolean,
+    p2pEnabled: Boolean,
+): Boolean =
+    isP2pStream &&
+        !shouldResolveToPlayableStream &&
+        p2pSettingsVisible &&
+        !p2pEnabled
 
 private fun PlayerScreenRuntime.enableP2pForPlayerControls() {
     val pending = playerControlsPendingP2pSwitch ?: return
@@ -1421,7 +1439,7 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
         parentMetaId = parentMetaId,
         activeSeasonNumber = activeSeasonNumber,
         activeEpisodeNumber = activeEpisodeNumber,
-        watchProgressByVideoId = watchProgressUiState.byVideoId,
+        watchProgressByVideoId = watchProgressUiState.byVideoIdForContent(parentMetaId),
         watchedKeys = watchedUiState.watchedKeys,
         blurUnwatchedEpisodes = metaScreenSettingsUiState.blurUnwatchedEpisodes,
         episodeStreamsPanelState = episodeStreamsPanelState,

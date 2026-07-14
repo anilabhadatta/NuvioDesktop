@@ -27,6 +27,7 @@ import com.nuvio.app.features.streams.StreamLaunchStore
 import com.nuvio.app.features.streams.StreamsRepository
 import com.nuvio.app.features.trakt.TraktAuthRepository
 import com.nuvio.app.features.trakt.TraktSettingsRepository
+import com.nuvio.app.core.ui.CardDepthStyleRepository
 import com.nuvio.app.core.ui.PosterCardStyleRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingEnrichmentCache
@@ -42,7 +43,9 @@ internal object LocalAccountDataCleaner {
         ContinueWatchingEnrichmentCache.clearLocalState()
         WatchProgressRepository.clearLocalState()
         WatchedRepository.clearLocalState()
-        PlatformLocalAccountDataCleaner.wipe()
+        LibraryRepository.runAccountStorageWipe {
+            PlatformLocalAccountDataCleaner.wipe()
+        }
 
         ProfileRepository.clearInMemory()
         AddonRepository.clearLocalState()
@@ -59,6 +62,7 @@ internal object LocalAccountDataCleaner {
         CollectionRepository.clearLocalState()
         ThemeSettingsRepository.clearLocalState()
         PosterCardStyleRepository.clearLocalState()
+        CardDepthStyleRepository.clearLocalState()
         TraktAuthRepository.clearLocalState()
         TraktSettingsRepository.clearLocalState()
         PlayerSettingsRepository.clearLocalState()

@@ -42,7 +42,6 @@ internal class NativePlayerController(
 
     @Volatile
     private var handle: Long = 0L
-    private var playbackProxy: DesktopPlaybackProxy? = null
     private var pendingSource: PendingSource? = null
     private var controlsState = PlayerControlsState()
     private var pendingSubtitleDelayMs: Int? = null
@@ -96,29 +95,18 @@ internal class NativePlayerController(
             disposePlayerHandle()
             runCatching {
                 val hostViewPtr = AwtNativeViewResolver.resolveNativeViewPointer(host)
-                val playbackSource = if (pending.sourceUrl.startsWith("file:", ignoreCase = true)) {
-                    NativePlaybackSource(
-                        url = runCatching { java.io.File(java.net.URI(pending.sourceUrl)).absolutePath }.getOrElse {
-                            val stripped = pending.sourceUrl.replaceFirst(Regex("^file:/{1,3}", RegexOption.IGNORE_CASE), "")
-                            runCatching { java.net.URLDecoder.decode(stripped, "UTF-8") }.getOrDefault(stripped)
-                        },
-                        headerLines = pending.headerLines,
-                    )
+                val resolvedSource = if (pending.sourceUrl.startsWith("file:", ignoreCase = true)) {
+                    runCatching { java.io.File(java.net.URI(pending.sourceUrl)).absolutePath }.getOrElse {
+                        val stripped = pending.sourceUrl.replaceFirst(Regex("^file:/{1,3}", RegexOption.IGNORE_CASE), "")
+                        runCatching { java.net.URLDecoder.decode(stripped, "UTF-8") }.getOrDefault(stripped)
+                    }
                 } else {
-                    val proxy = DesktopPlaybackProxy.startOrNull(
-                        sourceUrl = pending.sourceUrl,
-                        sourceHeaders = pending.headerLines.toHeaderMap(),
-                    )
-                    playbackProxy = proxy
-                    NativePlaybackSource(
-                        url = proxy?.localUrl ?: pending.sourceUrl,
-                        headerLines = if (proxy == null) pending.headerLines else emptyList(),
-                    )
+                    pending.sourceUrl
                 }
                 handle = NativePlayerBridge.create(
                     hostViewPtr = hostViewPtr,
-                    sourceUrl = playbackSource.url,
-                    headerLines = playbackSource.headerLines.toTypedArray(),
+                    sourceUrl = resolvedSource,
+                    headerLines = pending.headerLines.toTypedArray(),
                     playWhenReady = pending.playWhenReady,
                     initialPositionMs = pending.initialPositionMs,
                     controlsPageUrl = NativePlayerBridge.controlsPageUrl,
@@ -128,7 +116,7 @@ internal class NativePlayerController(
                 )
                 if (handle == 0L) error("Native player did not return a handle.")
                 log.d {
-                    "attach created handle=$handle source=${playbackSource.url.toPlaybackLogKey()} " +
+                    "attach created handle=$handle source=${resolvedSource.toPlaybackLogKey()} " +
                         "initialPositionMs=${pending.initialPositionMs}"
                 }
                 applyRememberedVolume()
@@ -362,13 +350,10 @@ internal class NativePlayerController(
     private fun disposePlayerHandle() {
         val current = handle
         handle = 0L
-        val currentProxy = playbackProxy
-        playbackProxy = null
         lastSentControlsStructureKey = null
         if (current != 0L) {
             runCatching { NativePlayerBridge.dispose(current) }
         }
-        currentProxy?.close()
     }
 
     override fun play() {
@@ -611,11 +596,6 @@ private data class PendingSource(
     val decoderPriority: Int,
     val nvidiaRtxSuperResolutionEnabled: Boolean,
     val onError: (String?) -> Unit,
-)
-
-private data class NativePlaybackSource(
-    val url: String,
-    val headerLines: List<String>,
 )
 
 private fun Map<String, String>.toHeaderLines(): List<String> =

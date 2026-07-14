@@ -2030,7 +2030,10 @@ private fun MainAppContent(
                                         onCloudFilePlay = { item, file ->
                                             coroutineScope.launch {
                                                 val resumeItem = WatchProgressRepository
-                                                    .progressForVideo(item.playbackVideoId(file))
+                                                    .progressForVideo(
+                                                        videoId = item.playbackVideoId(file),
+                                                        parentMetaId = item.id,
+                                                    )
                                                     ?.takeIf { it.isResumable }
                                                     ?.toContinueWatchingItem()
                                                 if (
@@ -2925,7 +2928,11 @@ private fun MainAppContent(
                         emptyMap()
                     },
                 ) { route ->
-                    val onBack = rememberGuardedPopBackStack(navController, route)
+                    val onBack = rememberGuardedPopBackStack(
+                        navController = navController,
+                        route = route,
+                        beforePop = ResumePromptRepository::markPlayerExitedNormally,
+                    )
                     val launch = remember(route.launchId) { PlayerLaunchStore.get(route.launchId) }
                     if (launch == null) {
                         LaunchedEffect(route.launchId) {
@@ -2970,11 +2977,7 @@ private fun MainAppContent(
                         initialPositionMs = launch.initialPositionMs,
                         initialProgressFraction = launch.initialProgressFraction,
                         contentLanguage = launch.contentLanguage,
-                        onBack = {
-                            ResumePromptRepository.markPlayerExitedNormally()
-                            PlayerLaunchStore.remove(route.launchId)
-                            navController.popBackStack()
-                        },
+                        onBack = onBack,
                         onOpenInExternalPlayer = if (externalPlayerSupported) { { request ->
                             externalPlayerPromptRequest = request
                             externalPlayerPromptLaunch = launch
