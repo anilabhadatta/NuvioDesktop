@@ -357,6 +357,7 @@
     <string name="compose_player_font_size_value">%1$dsp</string>
     <string name="compose_player_lock_controls">Lock player controls</string>
     <string name="compose_player_loading_lines">Loading subtitle lines...</string>
+    <string name="compose_player_languages">Languages</string>
     <string name="compose_player_no_subtitle_lines_found">No subtitle lines found</string>
     <string name="compose_player_subtitle_lines_load_error">Unable to load subtitle lines</string>
     <string name="compose_player_no_audio_tracks_available">No audio tracks available</string>
@@ -573,6 +574,12 @@
     <string name="settings_appearance_app_language">App Language</string>
     <string name="settings_appearance_app_language_device">Device language</string>
     <string name="settings_appearance_app_language_sheet_title">Choose Language</string>
+    <string name="settings_appearance_nav_bar_style">Navigation Bar</string>
+    <string name="settings_appearance_nav_bar_style_sheet_title">Navigation Bar Style</string>
+    <string name="settings_nav_bar_style_adaptive">Adaptive</string>
+    <string name="settings_nav_bar_style_expanded">Always Expanded</string>
+    <string name="settings_nav_bar_style_compact">Always Compact</string>
+    <string name="settings_nav_bar_style_classic">Classic</string>
     <string name="settings_appearance_continue_watching_description">Settings for the Continue Watching section.</string>
     <string name="settings_appearance_desktop_navigation">Desktop Navigation</string>
     <string name="settings_appearance_desktop_navigation_sheet_title">Choose Desktop Navigation</string>
@@ -1079,6 +1086,8 @@
     <string name="settings_tmdb_module_credits_description">Cast with photos, director, and writer from TMDB</string>
     <string name="settings_tmdb_module_details">Details</string>
     <string name="settings_tmdb_module_details_description">Runtime, status, country, and language from TMDB</string>
+    <string name="settings_tmdb_module_release_dates">Release dates</string>
+    <string name="settings_tmdb_module_release_dates_description">Use TMDB broadcaster air dates instead of precise add-on release times</string>
     <string name="settings_tmdb_module_episodes">Episodes</string>
     <string name="settings_tmdb_module_episodes_description">Episode titles, overviews, thumbnails, and runtime from TMDB</string>
     <string name="settings_tmdb_module_more_like_this">More Like This</string>
@@ -1424,6 +1433,9 @@
     <string name="updates_download_empty_body">Empty download body</string>
     <string name="updates_download_file_missing">Downloaded update file is missing.</string>
     <string name="updates_downloading_progress">Downloading %1$d%</string>
+    <string name="updates_debug_test_complete">Banner test complete</string>
+    <string name="updates_debug_test_description">Preview the banner and simulated download progress.</string>
+    <string name="updates_debug_test_title">Test update banner</string>
     <string name="updates_install_failed">Unable to start installation</string>
     <string name="updates_latest_version">You&apos;re using the latest version.</string>
     <string name="updates_message_allow_installs">Enable app installs for Nuvio, then come back and continue.</string>
@@ -1431,6 +1443,7 @@
     <string name="updates_message_no_updates">No updates found.</string>
     <string name="updates_message_ready">A new version is ready to install.</string>
     <string name="updates_not_available">In-app updates are not available on this build.</string>
+    <string name="updates_no_release_notes">No release notes were provided.</string>
     <string name="updates_preparing_download">Preparing download</string>
     <string name="updates_release_notes">Release notes</string>
     <string name="updates_title_allow_installs">Allow installs to continue</string>
@@ -1482,6 +1495,7 @@
     <string name="stream_default_name">Stream</string>
     <string name="source_embedded">Embedded</string>
     <string name="trakt_authorization_denied">Authorization denied</string>
+    <string name="trakt_authorization_expired_reconnect">Your Trakt authorization is no longer valid. Reconnect your Trakt account.</string>
     <string name="trakt_complete_sign_in_browser">Complete Trakt sign in in your browser</string>
     <string name="trakt_connected">Connected to Trakt</string>
     <string name="trakt_device_authorization_expired">Trakt authorization expired. Try again.</string>

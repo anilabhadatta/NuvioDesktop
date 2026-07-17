@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
@@ -89,6 +90,7 @@ import com.nuvio.app.core.ui.TraktListPickerDialog
 import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
+import com.nuvio.app.core.ui.rememberHeroStretchState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import com.nuvio.app.features.details.components.DetailActionButtons
@@ -766,6 +768,7 @@ fun MetaDetailsScreen(
                     )
                 }
                 val listState = rememberLazyListState()
+                val heroStretchState = rememberHeroStretchState(listState)
                 val density = LocalDensity.current
                 val safeAreaTopPx = with(density) {
                     WindowInsets.statusBars
@@ -773,42 +776,28 @@ fun MetaDetailsScreen(
                         .calculateTopPadding()
                         .toPx()
                 }
-                val heroHeightPxState = remember(meta.id) { mutableIntStateOf(0) }
-                val heroHeightPx = heroHeightPxState.intValue
-                val detailScrollOffsetProvider = remember(listState, heroHeightPxState) {
+                val heroHeightPx = remember(meta.id) { mutableIntStateOf(0) }
+                // Keep pixel-by-pixel list state reads out of this composition.
+                val detailScrollOffsetPx = remember(listState, heroHeightPx) {
                     {
                         if (listState.firstVisibleItemIndex == 0) {
                             listState.firstVisibleItemScrollOffset.toFloat()
                         } else {
-                            heroHeightPxState.intValue.toFloat() + listState.firstVisibleItemScrollOffset
+                            heroHeightPx.intValue.toFloat() + listState.firstVisibleItemScrollOffset
                         }
                     }
                 }
-                val isScrolledPastHeroHeaderThreshold by remember(
-                    listState,
-                    heroHeightPxState,
-                    safeAreaTopPx,
-                    detailScrollOffsetProvider,
-                ) {
+                val heroScrollOffset = remember(detailScrollOffsetPx) {
+                    { detailScrollOffsetPx().toInt() }
+                }
+                val isHeroCollapsed = remember(listState, heroHeightPx, safeAreaTopPx) {
                     derivedStateOf {
-                        val measuredHeroHeightPx = heroHeightPxState.intValue
+                        val measuredHeroHeightPx = heroHeightPx.intValue
                         val thresholdPx = (measuredHeroHeightPx - safeAreaTopPx).coerceAtLeast(0f)
                         measuredHeroHeightPx > 0 &&
-                            (listState.firstVisibleItemIndex > 0 || detailScrollOffsetProvider() > thresholdPx)
+                            (listState.firstVisibleItemIndex > 0 || detailScrollOffsetPx() > thresholdPx)
                     }
                 }
-                val isHeroTrailerWithinPlayThreshold by remember(
-                    heroHeightPxState,
-                    safeAreaTopPx,
-                    detailScrollOffsetProvider,
-                ) {
-                    derivedStateOf {
-                        val measuredHeroHeightPx = heroHeightPxState.intValue
-                        val thresholdPx = (measuredHeroHeightPx - safeAreaTopPx).coerceAtLeast(0f)
-                        measuredHeroHeightPx == 0 || detailScrollOffsetProvider() <= thresholdPx
-                    }
-                }
-                val headerTarget = if (isScrolledPastHeroHeaderThreshold) 1f else 0f
                 val heroTrailerSourceUrl = heroTrailerPlaybackSource
                     ?.videoUrl
                     ?.takeIf { it.isNotBlank() && heroTrailerPlaybackEnabled && !heroTrailerFinished && !isLeavingDetails }
@@ -817,7 +806,8 @@ fun MetaDetailsScreen(
                     ?.takeIf { heroTrailerSourceUrl != null && it.isNotBlank() }
                 val heroTrailerPlayWhenReady = heroTrailerSourceUrl != null &&
                     !isLeavingDetails &&
-                    isHeroTrailerWithinPlayThreshold
+                    !isHeroCollapsed.value
+                val headerTarget = if (isHeroCollapsed.value) 1f else 0f
                 val headerProgressState = animateFloatAsState(
                     targetValue = headerTarget,
                     animationSpec = tween(
@@ -926,6 +916,7 @@ fun MetaDetailsScreen(
                             state = listState,
                             modifier = Modifier
                                 .fillMaxSize()
+                                .nestedScroll(heroStretchState.nestedScrollConnection)
                                 .zIndex(1f),
                         ) {
                             if (useDesktopDetailLayout) {
@@ -938,8 +929,8 @@ fun MetaDetailsScreen(
                                         playButtonLabel = playButtonLabel,
                                         isSaved = isSaved,
                                         isWatched = isWatched,
-                                        scrollOffset = detailScrollOffsetProvider().toInt(),
-                                        onHeightChanged = { heroHeightPxState.intValue = it },
+                                        scrollOffset = heroScrollOffset,
+                                        onHeightChanged = { heroHeightPx.intValue = it },
                                         heroTrailerSourceUrl = heroTrailerSourceUrl,
                                         heroTrailerSourceAudioUrl = heroTrailerSourceAudioUrl,
                                         heroTrailerReady = heroTrailerReady,
@@ -1061,12 +1052,13 @@ fun MetaDetailsScreen(
                                         isTablet = isTablet,
                                         contentMaxWidth = contentMaxWidth,
                                         viewportHeight = viewportHeight,
-                                        scrollOffsetProvider = detailScrollOffsetProvider,
-                                        onHeightChanged = { heroHeightPxState.intValue = it },
+                                        scrollOffset = heroScrollOffset,
+                                        stretchPx = { heroStretchState.stretchPx },
+                                        onHeightChanged = { heroHeightPx.intValue = it },
                                         heroTrailerSourceUrl = heroTrailerSourceUrl,
                                         heroTrailerSourceAudioUrl = heroTrailerSourceAudioUrl,
                                         heroTrailerReady = heroTrailerReady,
-                                        heroTrailerPlayWhenReady = heroTrailerPlayWhenReady,
+                                        heroTrailerPlayWhenReady = { heroTrailerPlayWhenReady },
                                         heroTrailerMuted = heroTrailerMuted,
                                         heroGradientColor = dominantBackdropColor.takeIf { dominantColorEnabled },
                                         onBackdropLoaded = { painter, imageBitmap ->
@@ -1185,7 +1177,7 @@ fun MetaDetailsScreen(
                                 .zIndex(2f),
                         )
 
-                        if (backgroundMode.usesBackdropBackground && deferredMetaWorkAllowed && heroHeightPx > 0) {
+                        if (backgroundMode.usesBackdropBackground && deferredMetaWorkAllowed && heroHeightPx.intValue > 0) {
                             val blendColor = dominantBackdropColor.takeIf { dominantColorEnabled }
                                 ?: colorScheme.background
                             Box(
@@ -1194,7 +1186,7 @@ fun MetaDetailsScreen(
                                     .fillMaxWidth()
                                     .height(132.dp)
                                     .graphicsLayer {
-                                        translationY = heroHeightPx.toFloat() - detailScrollOffsetProvider()
+                                        translationY = heroHeightPx.intValue.toFloat() - detailScrollOffsetPx()
                                     }
                                     .background(
                                         Brush.verticalGradient(
@@ -1243,7 +1235,6 @@ fun MetaDetailsScreen(
                             backgroundColor = dominantBackdropColor.takeIf { dominantColorEnabled },
                             onBack = onBackFromDetails,
                             onToggleSaved = toggleSaved,
-                            modifier = Modifier.zIndex(2f),
                         )
 
                         selectedEpisodeForActions
@@ -1804,6 +1795,7 @@ private fun LazyListScope.configuredMetaSectionItems(
                     ),
                     meta = meta,
                     isTablet = isTablet,
+                    horizontalScrollPadding = contentHorizontalPadding,
                     playButtonLabel = playButtonLabel,
                     isSaved = isSaved,
                     isWatched = isWatched,
@@ -1952,6 +1944,7 @@ private fun ConfiguredMetaSections(
     settings: MetaScreenSettingsUiState,
     meta: MetaDetails,
     isTablet: Boolean,
+    horizontalScrollPadding: Dp,
     playButtonLabel: String,
     isSaved: Boolean,
     isWatched: Boolean,
@@ -2054,7 +2047,10 @@ private fun ConfiguredMetaSections(
                 )
             }
             MetaScreenSectionKey.OVERVIEW -> {
-                DetailMetaInfo(meta = meta)
+                DetailMetaInfo(
+                    meta = meta,
+                    horizontalScrollPadding = horizontalScrollPadding,
+                )
             }
             MetaScreenSectionKey.PRODUCTION -> {
                 if (hasProductionSection) {
@@ -2065,6 +2061,7 @@ private fun ConfiguredMetaSections(
                 DetailCastSection(
                     cast = meta.cast,
                     showHeader = showHeader,
+                    horizontalScrollPadding = horizontalScrollPadding,
                     onCastClick = onCastClick,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
@@ -2082,12 +2079,18 @@ private fun ConfiguredMetaSections(
                         onLoadMore = onLoadMoreComments,
                         onCommentClick = onCommentClick,
                         showHeader = showHeader,
+                        horizontalScrollPadding = horizontalScrollPadding,
                     )
                 }
             }
             MetaScreenSectionKey.TRAILERS -> {
                 if (hasTrailersSection) {
-                    DetailTrailersSection(trailers = meta.trailers, onTrailerClick = onTrailerClick, showHeader = showHeader)
+                    DetailTrailersSection(
+                        trailers = meta.trailers,
+                        onTrailerClick = onTrailerClick,
+                        showHeader = showHeader,
+                        horizontalScrollPadding = horizontalScrollPadding,
+                    )
                 }
             }
             MetaScreenSectionKey.EPISODES -> {
@@ -2095,6 +2098,7 @@ private fun ConfiguredMetaSections(
                     DetailSeriesContent(
                         meta = meta,
                         showHeader = showHeader,
+                        horizontalScrollPadding = horizontalScrollPadding,
                         preferredSeasonNumber = preferredEpisodeSeasonNumber,
                         preferredEpisodeNumber = preferredEpisodeNumber,
                         episodeCardStyle = settings.episodeCardStyle,
@@ -2120,6 +2124,7 @@ private fun ConfiguredMetaSections(
                         items = meta.collectionItems,
                         watchedKeys = watchedKeys,
                         showHeader = showHeader,
+                        horizontalScrollPadding = horizontalScrollPadding,
                         onPosterClick = onOpenMeta,
                     )
                 }
@@ -2136,6 +2141,7 @@ private fun ConfiguredMetaSections(
                         items = meta.moreLikeThis,
                         watchedKeys = watchedKeys,
                         showHeader = showHeader,
+                        horizontalScrollPadding = horizontalScrollPadding,
                         sourceLabel = sourceLabel,
                         onPosterClick = onOpenMeta,
                     )
