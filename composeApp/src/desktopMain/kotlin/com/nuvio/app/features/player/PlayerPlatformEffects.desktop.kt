@@ -29,7 +29,7 @@ actual fun EnterImmersivePlayerMode(keepScreenAwake: Boolean) {
 @Composable
 actual fun ManagePlayerPictureInPicture(
     isPlaying: Boolean,
-    playerSize: IntSize,
+    videoSize: IntSize,
 ) = Unit
 
 @Composable
