@@ -25,6 +25,7 @@ internal actual object TmdbSettingsStorage {
     private const val useSeasonPostersKey = "tmdb_use_season_posters"
     private const val useMoreLikeThisKey = "tmdb_use_more_like_this"
     private const val useCollectionsKey = "tmdb_use_collections"
+    private const val useReleaseDatesKey = "tmdb_use_release_dates"
     private val syncKeys = listOf(
         enabledKey,
         apiKeyKey,
@@ -40,6 +41,7 @@ internal actual object TmdbSettingsStorage {
         useSeasonPostersKey,
         useMoreLikeThisKey,
         useCollectionsKey,
+        useReleaseDatesKey,
     )
     private val store = DesktopStorage.store("nuvio_tmdb_settings")
 
@@ -71,6 +73,8 @@ internal actual object TmdbSettingsStorage {
     actual fun saveUseMoreLikeThis(enabled: Boolean) = saveBoolean(useMoreLikeThisKey, enabled)
     actual fun loadUseCollections(): Boolean? = loadBoolean(useCollectionsKey)
     actual fun saveUseCollections(enabled: Boolean) = saveBoolean(useCollectionsKey, enabled)
+    actual fun loadUseReleaseDates(): Boolean? = loadBoolean(useReleaseDatesKey)
+    actual fun saveUseReleaseDates(enabled: Boolean) = saveBoolean(useReleaseDatesKey, enabled)
 
     private fun loadString(key: String): String? = store.getString(ProfileScopedKey.of(key))
     private fun saveString(key: String, value: String) = store.putString(ProfileScopedKey.of(key), value)
@@ -92,6 +96,7 @@ internal actual object TmdbSettingsStorage {
         loadUseSeasonPosters()?.let { put(useSeasonPostersKey, encodeSyncBoolean(it)) }
         loadUseMoreLikeThis()?.let { put(useMoreLikeThisKey, encodeSyncBoolean(it)) }
         loadUseCollections()?.let { put(useCollectionsKey, encodeSyncBoolean(it)) }
+        loadUseReleaseDates()?.let { put(useReleaseDatesKey, encodeSyncBoolean(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -110,5 +115,6 @@ internal actual object TmdbSettingsStorage {
         payload.decodeSyncBoolean(useSeasonPostersKey)?.let(::saveUseSeasonPosters)
         payload.decodeSyncBoolean(useMoreLikeThisKey)?.let(::saveUseMoreLikeThis)
         payload.decodeSyncBoolean(useCollectionsKey)?.let(::saveUseCollections)
+        payload.decodeSyncBoolean(useReleaseDatesKey)?.let(::saveUseReleaseDates)
     }
 }
