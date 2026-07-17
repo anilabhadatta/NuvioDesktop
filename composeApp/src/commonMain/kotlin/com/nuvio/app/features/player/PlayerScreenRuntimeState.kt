@@ -204,8 +204,13 @@ internal class PlayerScreenRuntime(
     var trackPreferenceRestoreApplied by mutableStateOf(false)
     var subtitleDelayMs by mutableStateOf(0)
     var subtitleAutoSyncState by mutableStateOf(SubtitleAutoSyncUiState())
+    var activeSubtitleTab by mutableStateOf(SubtitleTab.BuiltIn)
 
     var lastSyncedSettingsResizeMode: PlayerResizeMode? = null
     var lastResetPlaybackIdentity: String? = null
     var lastResetVideoIdentity: String? = null
+}
+
+internal enum class SubtitleTab {
+    BuiltIn, Addons, Style
 }
