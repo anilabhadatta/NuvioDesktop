@@ -27,11 +27,15 @@ jobs:
         ref: ${{ github.event.inputs.build_branch || github.ref }}
         lfs: false
 
-    - name: Fetch Git LFS files
+    - name: Fetch pre-built runtime binaries
       shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        git lfs install
-        git lfs pull
+        gh release download runtime-binaries --pattern "macos-runtime.zip" --repo ${{ github.repository }} || gh release download runtime-binaries --pattern "macos-runtime.zip" --repo anilabhadatta/NuvioDesktop
+        mkdir -p composeApp/src/desktopMain/native/macos/runtime
+        unzip -o macos-runtime.zip -d composeApp/src/desktopMain/native/macos/runtime
+        rm macos-runtime.zip
 
     - name: Get MPVKit Submodule Hash
       id: mpvkit-hash
