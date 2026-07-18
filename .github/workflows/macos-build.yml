@@ -25,7 +25,13 @@ jobs:
       uses: actions/checkout@v4
       with:
         ref: ${{ github.event.inputs.build_branch || github.ref }}
-        lfs: true
+        lfs: false
+
+    - name: Fetch Git LFS files
+      shell: bash
+      run: |
+        git lfs install
+        git lfs pull
 
     - name: Get MPVKit Submodule Hash
       id: mpvkit-hash
