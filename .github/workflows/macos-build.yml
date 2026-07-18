@@ -32,10 +32,10 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release download runtime-binaries --pattern "macos-runtime.zip" --repo ${{ github.repository }} || gh release download runtime-binaries --pattern "macos-runtime.zip" --repo anilabhadatta/NuvioDesktop
+        gh release download runtime-binaries --pattern "macos-runtime.tar.gz" --repo ${{ github.repository }} || gh release download runtime-binaries --pattern "macos-runtime.tar.gz" --repo anilabhadatta/NuvioDesktop
         mkdir -p composeApp/src/desktopMain/native/macos/runtime
-        unzip -o macos-runtime.zip -d composeApp/src/desktopMain/native/macos/runtime
-        rm macos-runtime.zip
+        tar -xzf macos-runtime.tar.gz -C composeApp/src/desktopMain/native/macos/runtime
+        rm macos-runtime.tar.gz
 
     - name: Get MPVKit Submodule Hash
       id: mpvkit-hash

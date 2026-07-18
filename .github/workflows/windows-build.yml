@@ -29,10 +29,10 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release download runtime-binaries --pattern "windows-runtime.zip" --repo ${{ github.repository }} || gh release download runtime-binaries --pattern "windows-runtime.zip" --repo anilabhadatta/NuvioDesktop
+        gh release download runtime-binaries --pattern "windows-runtime.tar.gz" --repo ${{ github.repository }} || gh release download runtime-binaries --pattern "windows-runtime.tar.gz" --repo anilabhadatta/NuvioDesktop
         mkdir -p composeApp/src/desktopMain/native/windows/runtime
-        unzip -o windows-runtime.zip -d composeApp/src/desktopMain/native/windows/runtime
-        rm windows-runtime.zip
+        tar -xzf windows-runtime.tar.gz -C composeApp/src/desktopMain/native/windows/runtime
+        rm windows-runtime.tar.gz
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
